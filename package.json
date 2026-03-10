@@ -1,0 +1,24 @@
+{
+  "name": "prijavi-bitola",
+  "version": "1.0.0",
+  "description": "Civic issue reporting app for Bitola, North Macedonia",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev:server": "node --watch server.js",
+    "dev:client": "cd client && npm run dev",
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "build": "cd client && npm run build",
+    "prod": "npm run build && cross-env NODE_ENV=production npm start"
+  },
+  "dependencies": {
+    "node-sqlite3-wasm": "^0.8.54",
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "multer": "^1.4.5-lts.1"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "cross-env": "^7.0.3"
+  }
+}
