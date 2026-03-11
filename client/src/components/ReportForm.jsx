@@ -10,21 +10,57 @@ import { cn } from '@/lib/utils.js';
 
 const STEP = { CATEGORY: 0, DETAILS: 1, SUCCESS: 2 };
 
+async function reverseGeocode(lat, lng) {
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,
+      { headers: { 'Accept-Language': 'mk,en' } }
+    );
+    const data = await res.json();
+    const a = data.address || {};
+    // Build a short human-readable label
+    const parts = [
+      a.road,
+      a.house_number,
+      a.suburb || a.neighbourhood || a.quarter,
+      a.city || a.town || a.village,
+    ].filter(Boolean);
+    return parts.length ? parts.join(', ') : data.display_name?.split(',').slice(0, 2).join(',') || null;
+  } catch {
+    return null;
+  }
+}
+
 function useGPS() {
   const [coords,   setCoords]   = useState(null);
+  const [address,  setAddress]  = useState(null);
   const [locating, setLocating] = useState(false);
 
   const detect = () => {
     if (!navigator.geolocation) return;
     setLocating(true);
+    setAddress(null);
     navigator.geolocation.getCurrentPosition(
-      pos  => { setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }); setLocating(false); },
-      ()   => { setLocating(false); },
+      async pos => {
+        const c = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        setCoords(c);
+        const label = await reverseGeocode(c.lat, c.lng);
+        setAddress(label);
+        setLocating(false);
+      },
+      () => { setLocating(false); },
       { timeout: 8000, enableHighAccuracy: true }
     );
   };
 
-  return { coords, setCoords, locating, detect };
+  const setCoordsWithGeocode = async (c) => {
+    setCoords(c);
+    setAddress(null);
+    const label = await reverseGeocode(c.lat, c.lng);
+    setAddress(label);
+  };
+
+  return { coords, setCoords: setCoordsWithGeocode, address, locating, detect };
 }
 
 export default function ReportForm({ location, onSubmit, onClose }) {
@@ -36,7 +72,7 @@ export default function ReportForm({ location, onSubmit, onClose }) {
   const [submitting,  setSubmitting]  = useState(false);
   const [error,       setError]       = useState('');
   const fileRef = useRef(null);
-  const { coords, setCoords, locating, detect } = useGPS();
+  const { coords, setCoords, address, locating, detect } = useGPS();
 
   useEffect(() => {
     if (location) setCoords(location);
@@ -191,11 +227,14 @@ export default function ReportForm({ location, onSubmit, onClose }) {
                     <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
                     <div className="flex-1">
                       <p className="text-xs font-semibold text-green-800">Локацијата е зачувана</p>
-                      <p className="text-xs text-green-600 font-mono mt-0.5">
-                        {coords.lat.toFixed(5)}, {coords.lng.toFixed(5)}
+                      <p className="text-xs text-green-600 mt-0.5">
+                        {address
+                          ? address
+                          : <span className="font-mono">{coords.lat.toFixed(5)}, {coords.lng.toFixed(5)}</span>
+                        }
                       </p>
                     </div>
-                    <button onClick={detect} className="text-xs text-muted-foreground hover:text-foreground underline">
+                    <button onClick={detect} className="text-xs text-muted-foreground hover:text-foreground underline flex-shrink-0">
                       Освежи
                     </button>
                   </div>
